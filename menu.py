@@ -40,7 +40,7 @@ while True:
         subprocess.run(["bash", str(ROOT / "check_cron.sh")], cwd=str(ROOT))
         input("\nPress Enter to return to menu...")
     elif choice == "5":
-        subprocess.run(["bash", str(ROOT / "remove_cron.sh")], cwd=str(ROOT))
+        subprocess.run(["bash", str(ROOT / "remove_cron.sh"), sys.executable], cwd=str(ROOT))
         input("\nPress Enter to return to menu...")
     elif choice == "q":
         break

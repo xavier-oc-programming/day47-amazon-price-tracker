@@ -17,4 +17,7 @@ if crontab -l 2>/dev/null | grep -q "advanced/main.py"; then
     exit 1
 else
     echo "Cron job removed. The tracker will no longer run automatically."
+    PYTHON="${1:-$(which python3)}"
+    PROJECT="$(cd "$(dirname "$0")" && pwd)"
+    "$PYTHON" "$PROJECT/advanced/send_notification.py" remove
 fi

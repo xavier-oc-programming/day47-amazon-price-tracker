@@ -43,7 +43,7 @@ if crontab -l 2>/dev/null | grep -q "advanced/main.py"; then
     echo "Cron job installed successfully."
     echo "The tracker will run daily at 08:00. Output goes to tracker.log."
     echo ""
-    echo "To remove it later: crontab -e  (delete the line and save)"
+    "$PYTHON" "$PROJECT/advanced/send_notification.py" setup
 else
     echo ""
     echo "ERROR: crontab write failed."
