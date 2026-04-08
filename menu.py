@@ -30,7 +30,7 @@ while True:
         subprocess.run([sys.executable, str(path)], cwd=str(path.parent))
         input("\nPress Enter to return to menu...")
     elif choice == "3":
-        subprocess.run(["bash", str(ROOT / "setup_cron.sh")], cwd=str(ROOT))
+        subprocess.run(["bash", str(ROOT / "setup_cron.sh"), sys.executable], cwd=str(ROOT))
         input("\nPress Enter to return to menu...")
     elif choice == "q":
         break

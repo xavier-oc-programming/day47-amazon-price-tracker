@@ -3,7 +3,7 @@
 # Run once from the project root: bash setup_cron.sh
 
 PROJECT="$(cd "$(dirname "$0")" && pwd)"
-PYTHON="$(which python3)"
+PYTHON="${1:-$(which python3)}"
 LOGFILE="$PROJECT/tracker.log"
 CRON_CMD="0 8 * * * cd \"$PROJECT\" && \"$PYTHON\" advanced/main.py >> \"$LOGFILE\" 2>&1"
 
