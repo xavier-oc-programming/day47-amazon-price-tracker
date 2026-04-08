@@ -2,11 +2,11 @@
 
 Scrapes an Amazon product page and sends an email alert when the price drops below a target threshold.
 
-Point the script at any Amazon product URL, set a target price, and run it manually or on a daily schedule. When the live price dips below your threshold, you receive an email instantly — subject line "Amazon Price Alert!" with the current price and a direct link to buy.
+Point the script at any Amazon product URL, set a target price, and run it manually or schedule it to check automatically every day. When the live price dips below your threshold, you receive an email with the current price and a direct link to buy.
 
-There are two builds. The **original** build is a single flat script that follows the course exercise exactly: it fetches the page, pulls the price with BeautifulSoup, and fires off an email via `smtplib` — all in one file, top to bottom. The **advanced** build reorganises the same logic into three clean modules (`scraper.py`, `notifier.py`, `config.py`) with all magic numbers extracted into constants, credentials loaded from `.env`, and a `main.py` orchestrator that wires them together. Both builds produce identical behaviour; the difference is structure and maintainability.
+There are two builds. The **original** build is a single flat script that follows the course exercise exactly: it fetches the page, pulls the price with BeautifulSoup, and fires off an email via `smtplib` — all in one file, top to bottom. The **advanced** build reorganises the same logic into three clean modules (`scraper.py`, `notifier.py`, `config.py`) with all magic numbers extracted into constants, credentials loaded from `.env`, and a `main.py` orchestrator that wires them together. Both builds produce identical alert behaviour; the difference is structure, error handling, and maintainability.
 
-This project uses two external services. **Amazon** provides the product page that is scraped for the live price. **Gmail SMTP** (via Google App Passwords) is used to send the alert email without exposing your main account password.
+This project uses two external services. **Amazon** (amazon.es) provides the product page that is scraped for the live price. **Gmail SMTP** (via Google App Passwords) is used to send the alert email without exposing your main account password.
 
 ---
 
@@ -59,10 +59,10 @@ An App Password lets the script authenticate to Gmail without using your real ac
 ```bash
 pip install -r requirements.txt
 cp .env.example .env   # fill in your Gmail credentials
-python menu.py         # select 1 (original) or 2 (advanced)
+python menu.py         # interactive menu — see all options
 ```
 
-Or run a build directly:
+Or run a build directly without the menu:
 
 ```bash
 python original/main.py
@@ -71,27 +71,23 @@ python advanced/main.py
 
 ### Scheduling (recommended: local cron)
 
-GitHub Actions is **not recommended** for scraping Amazon — their Azure datacenter IPs are flagged by Amazon's bot detection. Running from your local machine works because your home IP looks like a real browser.
+GitHub Actions is **not recommended** for scraping Amazon — their Azure datacenter IPs are flagged by Amazon's bot detection regardless of headers. Running from your local machine works because your home ISP IP looks identical to a real browser visit.
 
-A setup script handles everything automatically:
+All cron management is available directly from `menu.py` (options 3–5). You can also run the scripts directly from the project root:
 
-1. Grant Terminal Full Disk Access — System Settings → Privacy & Security → Full Disk Access → enable Terminal.
+| Script | What it does |
+|---|---|
+| `bash setup_cron.sh` | Installs daily cron job at 08:00, sends confirmation email |
+| `bash check_cron.sh` | Shows whether cron is active + last 5 log entries |
+| `bash remove_cron.sh` | Removes the cron job, sends confirmation email |
 
-2. Run from the project root:
+**One-time macOS setup required before any cron script will work:**
 
-```bash
-bash setup_cron.sh
-```
+System Settings → Privacy & Security → Full Disk Access → enable Terminal
 
-That's it. The script detects your Python path, verifies `.env` and packages exist, and installs a cron job that runs daily at 08:00. Output is written to `tracker.log` in the project root.
+Without Full Disk Access, macOS silently blocks `crontab` writes.
 
-Your Mac must be awake at 08:00 for the job to run — if it's asleep, the job is skipped until the next day.
-
-To remove the cron job later:
-
-```bash
-crontab -e   # opens editor — delete the line and save
-```
+Your Mac must be awake at 08:00 for the job to run — if it is asleep, the job is skipped until the next day.
 
 ---
 
@@ -100,33 +96,34 @@ crontab -e   # opens editor — delete the line and save
 | Feature | Original | Advanced |
 |---|---|---|
 | File structure | Single flat script | Separate modules |
-| Config | Hardcoded constants in script | `config.py` — single source of truth |
+| Config | Constants defined inline | `config.py` — single source of truth |
 | Scraping | Inline `requests` + BeautifulSoup | `AmazonScraper` class |
 | Email | Inline `smtplib` call | `EmailNotifier` class |
 | Credentials | Loaded from `.env` via `dotenv` | Loaded from `.env` via `dotenv` |
 | Price parsing | Regex helper function | `AmazonScraper._parse_price()` static method |
-| EU/US price formats | Supported | Supported |
-| Error handling | try/except around SMTP | Raises exceptions; `main.py` catches them |
-| GitHub Actions | — | Daily schedule included |
+| EUR/USD/GBP format support | Yes | Yes |
+| Error handling | `try/except` around SMTP only | Every stage raises typed exceptions; `main.py` catches all |
+| Cron-safe | No — bare tracebacks on failure | Yes — always exits cleanly |
+| Notification emails | Price alert only | Price alert + cron install/remove confirmations |
 | Entry point | `original/main.py` | `advanced/main.py` |
 
 ---
 
 ## 3. Usage
 
-```
+```bash
 python menu.py
 ```
 
 ```
-   _____                                       __________        .__              
-  /  _  \   _____ _____  ____________   ____   \______   \_______|__| ____  ____  
- /  /_\  \ /     \\__  \ \___   /  _ \ /    \   |     ___/\_  __ \  |/ ___\/ __ \ 
-/    |    \  Y Y  \/ __ \_/    (  <_> )   |  \  |    |     |  | \/  \  \__\  ___/ 
+   _____                                       __________        .__
+  /  _  \   _____ _____  ____________   ____   \______   \_______|__| ____  ____
+ /  /_\  \ /     \\__  \ \___   /  _ \ /    \   |     ___/\_  __ \  |/ ___\/ __ \
+/    |    \  Y Y  \/ __ \_/    (  <_> )   |  \  |    |     |  | \/  \  \__\  ___/
 \____|__  /__|_|  (____  /_____ \____/|___|  /  |____|     |__|  |__|\___  >___  >
-        \/      \/     \/      \/          \/                            \/    \/ 
+        \/      \/     \/      \/          \/                            \/    \/
 
- ████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗██████╗ 
+ ████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗██████╗
 ╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
    ██║   ██████╔╝███████║██║     █████╔╝ █████╗  ██████╔╝
    ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗
@@ -147,21 +144,64 @@ q. Quit
 Select an option:
 ```
 
-Select `1` or `2` to run a build. Press Enter to return to the menu when done.
+Select `1` or `2` to run a build. The script runs once and returns to the menu. Press Enter when ready to redraw.
 
-**Example output (price above target):**
+**Option 3 — Schedule daily check:**
+
+Runs `setup_cron.sh` using the same Python interpreter that launched `menu.py`. Verifies `.env` and packages before installing. On success, sends a confirmation email with the current price and schedule details.
+
+**Option 4 — Check cron status:**
+
+Runs `check_cron.sh`. Shows whether the cron job is installed, the exact cron entry, and the last 5 lines of `tracker.log` so you can see the most recent run without leaving the menu.
+
+**Option 5 — Remove cron job:**
+
+Runs `remove_cron.sh`. Deletes the cron entry and sends a confirmation email with the current price at time of removal.
+
+**Example terminal output (price above target):**
 
 ```
-Current price: $129.99
-No alert — price ($129.99) is above target ($100.00).
+Current price: 149.99
+No alert — price (149.99) is above target (190.00).
 ```
 
-**Example output (price below target):**
+**Example terminal output (price below target):**
 
 ```
-Current price: $89.99
-Price is below target ($100.00). Sending alert...
+Current price: 149.99
+Price is below target (190.00). Sending alert...
 Alert sent successfully.
+```
+
+**Example confirmation email on cron install:**
+
+```
+Subject: Amazon Price Tracker — Daily Check Activated
+
+Your Amazon price tracker is now running automatically.
+
+Product : https://www.amazon.es/dp/B0CZXWGK79
+Target  : 190.00 EUR
+Current price: 149.99 EUR (BELOW target — alert would fire today!)
+Schedule: every day at 08:00
+
+You will receive an alert if the price drops below your target.
+To manage the schedule, open menu.py and use options 4 or 5.
+```
+
+**Example confirmation email on cron removal:**
+
+```
+Subject: Amazon Price Tracker — Daily Check Deactivated
+
+Your Amazon price tracker cron job has been removed.
+
+Product : https://www.amazon.es/dp/B0CZXWGK79
+Target  : 190.00 EUR
+Current price: 149.99 EUR (BELOW target — alert would fire today!)
+
+The script will no longer run automatically.
+To re-enable it, open menu.py and select option 3.
 ```
 
 ---
@@ -170,20 +210,23 @@ Alert sent successfully.
 
 ```
 Input (config)
-  └─ PRODUCT_URL, BROWSER_HEADERS, TARGET_PRICE, SMTP credentials
+  └─ PRODUCT_URL, BROWSER_HEADERS, TARGET_PRICE, SMTP credentials from .env
 
 Fetch
-  └─ requests.get(url, headers=browser_headers)
+  └─ requests.get(PRODUCT_URL, headers=BROWSER_HEADERS)
   └─ Response: raw HTML string
 
 Parse
   └─ BeautifulSoup finds <span class="aok-offscreen">
-  └─ Regex extracts price string (handles $, €, £, EU/US decimals)
-  └─ Output: float (e.g. 129.99)
+  └─ Regex extracts price string
+     — handles €/$/£ symbols and EUR/USD/GBP text prefixes
+     — handles non-breaking spaces (\xa0) between currency and number
+     — handles EU comma-decimal and US dot-decimal formats
+  └─ Output: float (e.g. 149.99)
 
 Decide
   └─ price < TARGET_PRICE?
-     ├─ Yes → send email alert
+     ├─ Yes → send price alert email
      └─ No  → print "No alert" and exit
 
 Output
@@ -196,17 +239,21 @@ Output
 
 ## 5. Features
 
-**Browser-spoofing headers** — The scraper sends a full set of browser headers (User-Agent, Accept, Sec-Fetch-*) so Amazon serves a real product page rather than a bot-detection wall.
+**Browser-spoofing headers** — The scraper sends a full set of browser headers (User-Agent, Accept, Sec-Fetch-\*) matching a real Firefox session on macOS. Amazon serves bot-detection pages to bare `requests` calls; these headers bypass that.
 
-**EU and US price format support** — The price parser uses regex to handle both comma-decimal (€59,99) and dot-decimal ($129.99) formats, including thousands separators (€1.299,99 → 1299.99).
+**Multi-format price parsing** — The regex handles every format Amazon uses: `€59,99`, `€1.299,99`, `$129.99`, `EUR\xa068.30`. Currency symbols, currency codes, and non-breaking spaces are all stripped before normalisation.
 
-**STARTTLS email** — Email is sent over an encrypted STARTTLS connection on port 587, never plain text. Credentials are loaded from `.env` and never hardcoded.
+**STARTTLS email** — Email is sent over an encrypted STARTTLS connection on port 587. Credentials are loaded from `.env` and never hardcoded.
 
-**Advanced-only: modular OOP design** — `AmazonScraper` and `EmailNotifier` are independent classes. Each can be instantiated, tested, or swapped without touching the other.
+**Advanced-only: modular OOP design** — `AmazonScraper` and `EmailNotifier` are independent classes. Each can be instantiated, tested, or swapped without touching the other. Changing from Gmail SMTP to SendGrid means only touching `notifier.py`.
 
-**Advanced-only: local cron schedule** — The recommended way to automate this script is a Mac cron job, not GitHub Actions. See the scheduling section in Quick start for the exact command. A `.github/workflows/` file is included in the repo for reference, but Amazon's bot detection blocks requests from GitHub Actions' Azure datacenter IPs.
+**Advanced-only: cron management from the menu** — Options 3, 4, and 5 in `menu.py` cover the full lifecycle of the cron job: install, status check with live log tail, and removal. All three shell scripts (`setup_cron.sh`, `check_cron.sh`, `remove_cron.sh`) can also be run directly from the project root.
 
-**Advanced-only: clean error propagation** — Modules raise typed exceptions (`ValueError`, `RuntimeError`). `main.py` catches them and prints a clean message — the script never crashes silently.
+**Advanced-only: confirmation emails with live price** — When the cron is installed or removed, the script fetches the current price at that moment and includes it in the confirmation email, along with whether the price is currently above or below the target.
+
+**Advanced-only: clean error propagation** — Modules raise typed exceptions (`ValueError`, `RuntimeError`). `main.py` catches them and prints a clean message. The script never crashes with a bare traceback — important for cron jobs where output goes to a log file.
+
+**Advanced-only: cron-safe Python path** — `setup_cron.sh` receives `sys.executable` from `menu.py`, so the cron job always uses the exact same Python interpreter and virtual environment that the user ran the menu with. No package mismatch between interactive and scheduled runs.
 
 ---
 
@@ -217,16 +264,25 @@ Output
 ```
 python menu.py
 │
-├─ 1 ──► original/main.py  (course build)
+├─ 1 ──► original/main.py       (course build — single-run)
 │         └─ returns → Press Enter → menu redraws
 │
-├─ 2 ──► advanced/main.py  (OOP build)
+├─ 2 ──► advanced/main.py       (OOP build — single-run)
+│         └─ returns → Press Enter → menu redraws
+│
+├─ 3 ──► setup_cron.sh          (install cron job)
+│         └─ returns → Press Enter → menu redraws
+│
+├─ 4 ──► check_cron.sh          (show status + last 5 log lines)
+│         └─ returns → Press Enter → menu redraws
+│
+├─ 5 ──► remove_cron.sh         (delete cron job)
 │         └─ returns → Press Enter → menu redraws
 │
 └─ q ──► exit
 ```
 
-### b) Execution flow
+### b) Price check execution flow
 
 ```
 Start
@@ -247,7 +303,7 @@ BeautifulSoup.find("span", class_="aok-offscreen")
   ▼
 _parse_price(text)
   │
-  ├─ regex no match → raise ValueError → caught in main → print error → exit
+  ├─ no regex match → raise ValueError → caught in main → print error → exit
   │
   ▼
 price < TARGET_PRICE?
@@ -256,10 +312,38 @@ price < TARGET_PRICE?
   │
   └─ Yes → smtplib.SMTP(SMTP_ADDRESS, 587)
               │
-              ├─ Auth error → raise ValueError → caught in main → print error → exit
-              ├─ SMTP error → raise RuntimeError → caught in main → print error → exit
+              ├─ auth error  → raise ValueError  → caught in main → print error → exit
+              ├─ SMTP error  → raise RuntimeError → caught in main → print error → exit
               │
-              └─ Success → print "Alert sent" → exit cleanly
+              └─ success → print "Alert sent" → exit cleanly
+```
+
+### c) Cron install flow (option 3)
+
+```
+menu.py option 3
+  │
+  ▼
+setup_cron.sh (receives sys.executable from menu.py)
+  │
+  ├─ .env missing?       → print error + instructions → exit
+  ├─ packages missing?   → print error + instructions → exit
+  ├─ cron already set?   → print existing entry → exit (no duplicate)
+  │
+  ▼
+crontab install (0 8 * * *)
+  │
+  ├─ write failed (Full Disk Access not granted)?
+  │     → print error + System Settings instructions → exit
+  │
+  └─ success
+        │
+        ▼
+        send_notification.py setup
+          │
+          ├─ fetch current price from amazon.es
+          ├─ compare to TARGET_PRICE
+          └─ send confirmation email with price + status
 ```
 
 ---
@@ -269,31 +353,32 @@ price < TARGET_PRICE?
 ```
 day47-amazon-price-tracker/
 │
-├── menu.py                    # entry point — draws menu, launches builds
-├── art.py                     # LOGO constant for menu display
-├── requirements.txt           # pip dependencies + Python version note
-├── setup_cron.sh              # install daily cron job (menu option 3)
-├── check_cron.sh              # show cron status + last log entries (menu option 4)
-├── remove_cron.sh             # remove cron job (menu option 5)
+├── menu.py                      # interactive menu — launches builds and cron scripts
+├── art.py                       # LOGO constant printed by menu.py
+├── requirements.txt             # pip dependencies + Python version note
+├── setup_cron.sh                # install daily 08:00 cron job (menu option 3)
+├── check_cron.sh                # show cron status + last 5 log lines (menu option 4)
+├── remove_cron.sh               # remove cron job (menu option 5)
 ├── .gitignore
-├── .env.example               # template for required environment variables
+├── .env.example                 # credential template — committed, never the real .env
 ├── README.md
 │
 ├── original/
-│   └── main.py                # verbatim course script
+│   └── main.py                  # verbatim course script — single flat file
 │
 ├── advanced/
-│   ├── config.py              # all constants (URL, headers, threshold, SMTP port)
-│   ├── scraper.py             # AmazonScraper — fetch + parse price
-│   ├── notifier.py            # EmailNotifier — send SMTP alert
-│   └── main.py                # orchestrator — wires modules together
+│   ├── config.py                # all constants: URL, headers, threshold, SMTP port
+│   ├── scraper.py               # AmazonScraper — fetches page and extracts price
+│   ├── notifier.py              # EmailNotifier — sends SMTP alert
+│   ├── send_notification.py     # sends cron install/remove confirmation emails
+│   └── main.py                  # orchestrator — wires scraper + notifier together
 │
 ├── docs/
-│   └── COURSE_NOTES.md        # original exercise description and variant notes
+│   └── COURSE_NOTES.md          # original exercise description and variant file notes
 │
 └── .github/
     └── workflows/
-        └── amazon-price-tracker.yml   # daily GitHub Actions schedule
+        └── amazon-price-tracker.yml   # GitHub Actions reference (not recommended — see below)
 ```
 
 ---
@@ -304,98 +389,169 @@ day47-amazon-price-tracker/
 
 | Method | Returns | Description |
 |---|---|---|
-| `__init__(url, headers)` | — | Initialises with product URL and browser headers from `config.py`. Both parameters are optional and default to config values. |
-| `get_price()` | `float` | Fetches the product page and returns the current price. Raises `requests.HTTPError` on bad response, `ValueError` if the price element or a parseable price string is not found. |
-| `_parse_price(text)` *(static)* | `float` | Extracts and normalises a price string. Handles $, €, £ symbols and both EU/US decimal formats. Raises `ValueError` if no valid price pattern is found. |
+| `__init__(url, headers)` | — | Initialises with product URL and browser headers. Both parameters are optional — defaults come from `config.py`. |
+| `get_price()` | `float` | Fetches the product page, locates the price element, and returns the current price. Raises `requests.HTTPError` on a bad HTTP response. Raises `ValueError` if the price element is missing or no parseable price string is found. |
+| `_parse_price(text)` *(static)* | `float` | Extracts and normalises a price string. Handles `€`, `$`, `£` symbols and `EUR`, `USD`, `GBP` text prefixes with optional non-breaking spaces. Handles EU comma-decimal and US dot-decimal formats. Raises `ValueError` if no valid price pattern is found. |
 
 ### `advanced/notifier.py` — `EmailNotifier`
 
 | Method | Returns | Description |
 |---|---|---|
 | `__init__(smtp_address, sender, password, recipient)` | — | Stores SMTP credentials. No connection is opened at init time. |
-| `send_alert(current_price)` | `bool` | Sends the price-drop email via STARTTLS SMTP. Returns `True` on success. Raises `ValueError` on auth failure, `RuntimeError` on other SMTP errors. |
+| `send_alert(current_price)` | `bool` | Sends the price-drop alert email via STARTTLS SMTP on port 587. Returns `True` on success. Raises `ValueError` on authentication failure. Raises `RuntimeError` on any other SMTP error. |
+
+### `advanced/send_notification.py` — standalone script
+
+Called by `setup_cron.sh` and `remove_cron.sh` after a successful cron install or removal.
+
+| Argument | Effect |
+|---|---|
+| `setup` | Sends "Daily Check Activated" email with current price and schedule |
+| `remove` | Sends "Daily Check Deactivated" email with current price |
+
+Fetches the live price at the moment of execution. If the fetch fails, falls back to `"could not fetch"` and still sends the email.
 
 ---
 
 ## 9. Configuration reference
 
+All constants are in [advanced/config.py](advanced/config.py). Edit this file to change the product, target price, or any other setting.
+
 | Constant | Default | Description |
 |---|---|---|
-| `PRODUCT_URL` | Amazon Instant Pot URL | The product page to scrape |
-| `BROWSER_HEADERS` | Firefox 143 on macOS | Headers sent with every request to avoid bot detection |
-| `PRICE_CSS_CLASS` | `"aok-offscreen"` | CSS class of the `<span>` containing the price |
-| `TARGET_PRICE` | `190.00` | EUR threshold — alert fires when price drops below this |
-| `SMTP_PORT` | `587` | STARTTLS port for Gmail SMTP |
-| `ROOT_DIR` | `Path(__file__).parent.parent` | Absolute path to repo root, used by `main.py` to locate `.env` |
+| `PRODUCT_URL` | `https://www.amazon.es/dp/B0CZXWGK79` | The product page to scrape. Replace with any Amazon product URL. |
+| `BROWSER_HEADERS` | Firefox 143 on macOS | Full set of headers sent with every request to avoid bot detection. |
+| `PRICE_CSS_CLASS` | `"aok-offscreen"` | CSS class of the `<span>` containing the price on Amazon product pages. |
+| `TARGET_PRICE` | `190.00` | EUR threshold — alert email fires when the live price drops below this. |
+| `SMTP_PORT` | `587` | STARTTLS port for Gmail SMTP. |
+| `ROOT_DIR` | `Path(__file__).parent.parent` | Absolute path to the repo root, used to locate `.env`. |
 
 ---
 
 ## 10. Data schema
 
-### Page price element (scraped HTML)
+### Scraped HTML price element
+
+Amazon embeds the price in a screen-reader span:
 
 ```html
-<span class="aok-offscreen">$129.99</span>
+<span class="aok-offscreen">EUR 149,99</span>
 ```
 
-The regex pattern handles all of these:
+The regex pattern handles all formats Amazon uses by region:
 
-| Raw string | Parsed float |
+| Raw string from page | Parsed float |
 |---|---|
 | `$129.99` | `129.99` |
 | `$1,299.99` | `1299.99` |
 | `€59,99` | `59.99` |
 | `€1.299,99` | `1299.99` |
+| `EUR\xa068.30` | `68.30` |
+| `EUR\xa01.299,99` | `1299.99` |
 
-### Email alert
+### Price alert email
 
 ```
 Subject: Amazon Price Alert!
 
-The Instant Pot is now $89.99 — below your target of $100.00!
-Check it here: https://www.amazon.com/dp/B075CYMYK6?...
+Price dropped to 149.99 — below your target of 190.00!
+Check it here: https://www.amazon.es/dp/B0CZXWGK79
+```
+
+### Cron install confirmation email
+
+```
+Subject: Amazon Price Tracker — Daily Check Activated
+
+Your Amazon price tracker is now running automatically.
+
+Product : https://www.amazon.es/dp/B0CZXWGK79
+Target  : 190.00 EUR
+Current price: 149.99 EUR (BELOW target — alert would fire today!)
+Schedule: every day at 08:00
+
+You will receive an alert if the price drops below your target.
+To manage the schedule, open menu.py and use options 4 or 5.
+```
+
+### Cron removal confirmation email
+
+```
+Subject: Amazon Price Tracker — Daily Check Deactivated
+
+Your Amazon price tracker cron job has been removed.
+
+Product : https://www.amazon.es/dp/B0CZXWGK79
+Target  : 190.00 EUR
+Current price: 149.99 EUR (BELOW target — alert would fire today!)
+
+The script will no longer run automatically.
+To re-enable it, open menu.py and select option 3.
+```
+
+### tracker.log (cron output)
+
+Each daily run appends its stdout and stderr to `tracker.log` in the project root:
+
+```
+Current price: 149.99
+No alert — price (149.99) is above target (190.00).
+```
+
+or on alert:
+
+```
+Current price: 149.99
+Price is below target (190.00). Sending alert...
+Alert sent successfully.
 ```
 
 ---
 
 ## 11. Environment variables
 
-Copy `.env.example` to `.env` and fill in values.
+Copy `.env.example` to `.env` and fill in values. The `.env` file is gitignored and never committed.
 
 | Variable | Required | Description |
 |---|---|---|
-| `SMTP_ADDRESS` | Yes | SMTP server hostname (e.g. `smtp.gmail.com`) |
-| `EMAIL_ADDRESS` | Yes | Gmail address used to send the alert |
-| `EMAIL_PASSWORD` | Yes | 16-character Gmail App Password |
-| `TARGET_EMAIL` | Yes | Recipient address for the alert email |
+| `SMTP_ADDRESS` | Yes | SMTP server hostname — always `smtp.gmail.com` for Gmail |
+| `EMAIL_ADDRESS` | Yes | Gmail address used to send all emails (alerts and confirmations) |
+| `EMAIL_PASSWORD` | Yes | 16-character Gmail App Password — not your normal Gmail password |
+| `TARGET_EMAIL` | Yes | Recipient address for alert and confirmation emails |
+
+`TARGET_EMAIL` can be the same as `EMAIL_ADDRESS` to send to yourself, or a different address to notify someone else.
 
 ---
 
 ## 12. Design decisions
 
-**`config.py` — zero magic numbers** — Every constant (URL, price threshold, SMTP port, browser headers) lives in one file. Changing the monitored product or target price requires editing exactly one line.
+**`config.py` — zero magic numbers** — Every constant (URL, price threshold, SMTP port, browser headers, CSS class) lives in one file. Changing the monitored product or target price requires editing exactly one line with no risk of missing a duplicate elsewhere.
 
-**Separate `scraper.py` and `notifier.py`** — Fetching and notifying are independent concerns. Each class can be tested or swapped in isolation (e.g. switch from SMTP to SendGrid in `notifier.py` without touching the scraper).
+**Separate `scraper.py` and `notifier.py`** — Fetching and notifying are independent concerns. Each class can be tested or replaced in isolation. Switching from Gmail SMTP to SendGrid means only touching `notifier.py`; the scraper is unaffected.
 
-**Credentials via `.env`, never hardcoded** — The real `.env` is gitignored. `.env.example` is committed to document required variables without leaking secrets.
+**Credentials via `.env`, never hardcoded** — The real `.env` is gitignored. `.env.example` is committed to document required variables without leaking secrets. Anyone cloning the repo immediately knows what credentials they need.
 
-**`Path(__file__).parent` for all paths** — The `.env` file is always resolved relative to the script's location, so both `python menu.py` and `python advanced/main.py` find it correctly from any working directory.
+**`Path(__file__).parent` for all paths** — The `.env` file is always resolved relative to each script's own location, so both `python menu.py` and `python advanced/main.py` (and the cron job) find it correctly regardless of what directory they are launched from.
 
-**Pure-logic modules raise exceptions instead of `sys.exit()`** — `AmazonScraper` and `EmailNotifier` have no awareness of how the caller handles errors. `main.py` catches all exceptions and prints clean messages, keeping business logic separate from error UX.
+**Pure-logic modules raise exceptions instead of `sys.exit()`** — `AmazonScraper` and `EmailNotifier` have no awareness of how the caller handles errors. `main.py` catches all exceptions and prints clean messages. This keeps business logic separate from error UX and makes the advanced build safe for unattended cron runs — a bare traceback in `tracker.log` would be unreadable.
 
-**`sys.path.insert` pattern** — `advanced/main.py` inserts its own directory at the front of `sys.path` so sibling imports (`from config import ...`) resolve correctly whether the script is launched via `menu.py` (using `subprocess.run` + `cwd=`) or directly.
+**`sys.path.insert` pattern** — `advanced/main.py` inserts its own directory at the front of `sys.path` so sibling imports (`from config import ...`) resolve correctly whether launched via `menu.py`, run directly, or executed by cron.
 
-**`subprocess.run` + `cwd=`** — `menu.py` sets `cwd` to the build's directory. This means relative imports inside each build resolve against that directory, not the repo root.
+**`subprocess.run` + `cwd=`** — `menu.py` sets `cwd` to the build's directory when launching each script. This means relative imports inside each build resolve against their own directory, not the repo root.
 
-**`while True` in `menu.py`, no recursion** — The menu loop never calls itself. Stack depth stays constant regardless of how many times the user navigates back from a build.
+**`sys.executable` passed to cron scripts** — `menu.py` passes `sys.executable` to `setup_cron.sh` and `remove_cron.sh` so the cron job uses the exact Python interpreter that ran the menu — same virtual environment, same installed packages. Using `which python3` would silently pick up the system Python which may lack `requests`, `bs4`, or `dotenv`.
 
-**Console cleared before every menu render** — The `clear` flag is `True` after any valid action and `False` after invalid input, so error messages stay visible without an extra re-draw.
+**All three cron scripts in root** — `setup_cron.sh`, `check_cron.sh`, and `remove_cron.sh` are all at the repo root alongside `menu.py`. They can be run directly (`bash setup_cron.sh`) or via menu options 3–5. Keeping them at root makes them discoverable and consistent — no reason to bury them in a subdirectory.
 
-**Browser-spoofing headers** — Amazon aggressively blocks headless requests. Sending a realistic User-Agent and the full set of Sec-Fetch-* headers is the minimum required to get a real product page back.
+**`while True` in `menu.py`, no recursion** — The menu loop never calls itself. Stack depth stays constant regardless of how many times the user navigates back from a build or cron action.
 
-**Local cron over GitHub Actions** — The `.github/workflows/` file is included for reference, but GitHub Actions runs on Microsoft Azure datacenter IPs. Amazon knows these IP ranges and treats them as bots regardless of headers. A local cron job runs from your home ISP IP, which looks identical to a real browser visit — no extra configuration needed.
+**Console cleared before every menu render, not after errors** — The `clear` flag is `True` after any valid action and `False` after invalid input, so error messages stay visible on screen before the menu redraws.
 
-**No `data/`, `input/`, or `output/` directories** — The script reads from the web and writes to email. Nothing is persisted between runs and no files ship with the project, so none of these directories are needed.
+**Confirmation emails fetch the live price** — When the cron is installed or removed, `send_notification.py` fetches the current price at that moment and includes it alongside the target. This gives the user immediate context — they can see whether the tracker would have fired today.
+
+**Local cron over GitHub Actions** — The `.github/workflows/` file is included for reference, but GitHub Actions runs on Microsoft Azure datacenter IPs. Amazon identifies these ranges and returns bot-detection pages regardless of browser headers. A local cron job runs from a home ISP IP, which is indistinguishable from a real browser. No proxy, no workaround, no extra cost.
+
+**No `data/`, `input/`, or `output/` directories** — The script reads from the web and writes to email. Nothing is persisted between runs and no curated files ship with the project, so none of these directories are needed.
 
 ---
 
@@ -405,18 +561,20 @@ Built as Day 47 of 100 Days of Code by Dr. Angela Yu.
 
 **Concepts covered in the original build:**
 - Web scraping with `requests` and `BeautifulSoup`
-- Locating elements with CSS class selectors
-- Sending email with `smtplib` (STARTTLS, App Passwords)
+- Locating elements with CSS class selectors (`soup.find()`)
+- Sending email programmatically with `smtplib` (STARTTLS, port 587)
+- Using Gmail App Passwords instead of account passwords
 - Loading credentials from `.env` with `python-dotenv`
-- Regex for price extraction and normalisation
+- Regex for price string extraction and normalisation
 
 **The advanced build extends into:**
 - Object-oriented design (classes, single-responsibility modules)
-- Configuration centralisation (`config.py`)
-- Clean exception propagation (raise vs sys.exit)
-- CI/CD with GitHub Actions (daily cron schedule, secrets injection)
+- Configuration centralisation (`config.py` — single source of truth)
+- Clean exception propagation (raise in modules, catch in orchestrator)
+- Shell scripting for cron management (`setup_cron.sh`, `check_cron.sh`, `remove_cron.sh`)
+- Scheduled automation via macOS cron with full lifecycle management from a menu
 
-See [docs/COURSE_NOTES.md](docs/COURSE_NOTES.md) for the full concept breakdown.
+See [docs/COURSE_NOTES.md](docs/COURSE_NOTES.md) for the full concept breakdown and notes on variant files.
 
 ---
 
@@ -424,12 +582,12 @@ See [docs/COURSE_NOTES.md](docs/COURSE_NOTES.md) for the full concept breakdown.
 
 | Module | Used in | Purpose |
 |---|---|---|
-| `requests` | `original/main.py`, `advanced/scraper.py` | HTTP GET to fetch the Amazon product page |
-| `beautifulsoup4` | `original/main.py`, `advanced/scraper.py` | Parse HTML and locate the price element |
-| `python-dotenv` | `original/main.py`, `advanced/main.py` | Load credentials from `.env` |
-| `smtplib` | `original/main.py`, `advanced/notifier.py` | Send alert email via STARTTLS SMTP (standard library) |
-| `re` | `original/main.py`, `advanced/scraper.py` | Regex price extraction and normalisation (standard library) |
-| `os` | `original/main.py`, `advanced/main.py` | `os.getenv()` to read environment variables (standard library) |
-| `pathlib` | `advanced/config.py`, `advanced/main.py`, `menu.py` | Path resolution relative to script location (standard library) |
-| `subprocess` | `menu.py` | Launch build scripts as child processes (standard library) |
-| `sys` | `menu.py`, `advanced/main.py` | `sys.executable`, `sys.path.insert` (standard library) |
+| `requests` | `original/main.py`, `advanced/scraper.py` | HTTP GET to fetch the Amazon product page with browser headers |
+| `beautifulsoup4` | `original/main.py`, `advanced/scraper.py` | Parse response HTML and locate the price `<span>` element |
+| `python-dotenv` | `original/main.py`, `advanced/main.py`, `advanced/send_notification.py` | Load credentials from `.env` at runtime |
+| `smtplib` | `original/main.py`, `advanced/notifier.py`, `advanced/send_notification.py` | Send emails via STARTTLS SMTP — standard library |
+| `re` | `original/main.py`, `advanced/scraper.py` | Regex price extraction and multi-format normalisation — standard library |
+| `os` | `original/main.py`, `advanced/main.py`, `advanced/send_notification.py` | `os.getenv()` to read environment variables — standard library |
+| `pathlib` | `advanced/config.py`, `advanced/main.py`, `advanced/send_notification.py`, `menu.py` | Path resolution relative to each script's location — standard library |
+| `subprocess` | `menu.py` | Launch build scripts and cron shell scripts as child processes — standard library |
+| `sys` | `menu.py`, `advanced/main.py`, `advanced/send_notification.py` | `sys.executable`, `sys.path.insert`, `sys.argv` — standard library |
