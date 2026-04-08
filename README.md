@@ -292,7 +292,7 @@ day47-amazon-price-tracker/
 | `PRODUCT_URL` | Amazon Instant Pot URL | The product page to scrape |
 | `BROWSER_HEADERS` | Firefox 143 on macOS | Headers sent with every request to avoid bot detection |
 | `PRICE_CSS_CLASS` | `"aok-offscreen"` | CSS class of the `<span>` containing the price |
-| `TARGET_PRICE` | `100.00` | USD threshold — alert fires when price drops below this |
+| `TARGET_PRICE` | `190.00` | EUR threshold — alert fires when price drops below this |
 | `SMTP_PORT` | `587` | STARTTLS port for Gmail SMTP |
 | `ROOT_DIR` | `Path(__file__).parent.parent` | Absolute path to repo root, used by `main.py` to locate `.env` |
 

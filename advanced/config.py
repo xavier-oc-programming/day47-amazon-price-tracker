@@ -26,7 +26,7 @@ BROWSER_HEADERS = {
 PRICE_CSS_CLASS = "aok-offscreen"
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
-TARGET_PRICE = 140.00  # EUR — send alert if price drops below this
+TARGET_PRICE = 190.00  # EUR — send alert if price drops below this
 
 # ── Email / SMTP ──────────────────────────────────────────────────────────────
 SMTP_PORT = 587

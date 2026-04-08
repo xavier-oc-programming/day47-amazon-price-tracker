@@ -98,7 +98,7 @@ print(f"✅ Extracted numeric price: {price:.2f}")
 # -------------------------------------------------------
 # 6. Define target price and send alert if needed
 # -------------------------------------------------------
-TARGET_PRICE = 140.00
+TARGET_PRICE = 190.00
 
 
 def send_email_alert(current_price: float):
